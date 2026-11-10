@@ -18,7 +18,7 @@ const {
   TELEGRAM_CHANNEL_ID,
   META_PIXEL_ID,
   META_ACCESS_TOKEN,
-  META_EVENT_NAME // <--- New variable added here
+  META_EVENT_NAME
 } = process.env;
 
 const TG = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
@@ -60,6 +60,7 @@ app.post('/webhook/telegram', async (req, res) => {
 
       console.log(`Join request received from: ${from.username || userId}`);
 
+      // Try to approve the user
       const approveRes = await fetch(`${TG}/approveChatJoinRequest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -67,12 +68,15 @@ app.post('/webhook/telegram', async (req, res) => {
       });
       
       const approveJson = await approveRes.json();
+      
       if (!approveJson.ok) {
-        console.error('Failed to approve user:', approveJson);
-        return;
+        // If it fails (e.g., USER_ALREADY_PARTICIPANT), log it but DO NOT stop the script
+        console.error('Telegram approval notice:', approveJson.description);
+      } else {
+        console.log(`Successfully approved user ${userId}.`);
       }
-      console.log(`Successfully approved user ${userId}.`);
 
+      // ALWAYS Send conversion to Meta, even if Telegram said they were already in
       await sendMetaConversion(userId, from);
     }
   } catch (err) {
